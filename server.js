@@ -7,6 +7,7 @@ const morgan = require("morgan");
 
 const connectDB = require("./src/config/db");
 const { initSocket } = require("./src/services/socketService");
+const { verifyEmailConfig } = require("./src/services/emailService");
 const errorHandler = require("./src/middleware/errorHandler");
 
 const authRoutes = require("./src/routes/auth");
@@ -46,6 +47,7 @@ const PORT = process.env.PORT || 5000;
 
 async function start() {
   await connectDB();
+  verifyEmailConfig(); // logs clearly at boot if Gmail rejects SMTP_USER/SMTP_PASS
   initSocket(server);
   server.listen(PORT, () => {
     console.log(`[Server] Listening on port ${PORT}`);

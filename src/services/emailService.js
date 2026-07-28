@@ -16,6 +16,25 @@ function getTransporter() {
 }
 
 /**
+ * Call this once at server boot (see server.js) to confirm Gmail actually accepts the
+ * SMTP_USER/SMTP_PASS combo. Logs a clear reason instead of failing silently later when
+ * the first real notification tries to go out.
+ */
+async function verifyEmailConfig() {
+  try {
+    await getTransporter().verify();
+    console.log("[Email] SMTP connection OK — notifications will be sent from", process.env.SMTP_USER);
+  } catch (err) {
+    console.error(
+      "[Email] SMTP verification FAILED — notifications will not be sent. Reason:",
+      err.message,
+      "\n  → Common causes: SMTP_USER/SMTP_PASS wrong, 2-Step Verification not enabled on that Gmail account " +
+        "(required for App Passwords), or the App Password was revoked/regenerated."
+    );
+  }
+}
+
+/**
  * Sends a "new message" notification email to the admin.
  * Only called when the admin is NOT currently connected to the dashboard (see socketService).
  */
@@ -45,4 +64,4 @@ async function sendNewMessageNotification({ userDisplayName, telegramUsername, m
   });
 }
 
-module.exports = { sendNewMessageNotification };
+module.exports = { sendNewMessageNotification, verifyEmailConfig };

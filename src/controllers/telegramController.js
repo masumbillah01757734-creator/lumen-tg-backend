@@ -148,7 +148,7 @@ async function handleWebhook(req, res) {
           messagePreview: preview.slice(0, 200),
           messageTime: message.date.toLocaleString(),
         })
-        .catch((err) => console.error("[Email] Failed to send notification:", err.message));
+        .catch((err) => console.error("[Email] Failed to send notification:", err.message, err.stack));
     }
   } catch (err) {
     console.error("[Telegram Webhook] Error:", err.message);
