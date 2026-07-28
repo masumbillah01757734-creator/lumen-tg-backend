@@ -18,6 +18,10 @@ const fileRoutes = require("./src/routes/files");
 const app = express();
 const server = http.createServer(app);
 
+// Railway (এবং অন্য যেকোনো reverse proxy) X-Forwarded-For header পাঠায়।
+// এটা সেট না করলে express-rate-limit ভুল client IP ধরবে বা error দেবে।
+app.set("trust proxy", 1);
+
 // ---- Core middleware ----
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
