@@ -36,7 +36,7 @@ async function verifyEmailConfig() {
 
 /**
  * Sends a "new message" notification email to the admin.
- * Only called when the admin is NOT currently connected to the dashboard (see socketService).
+ * Called for every incoming Telegram message (see telegramController).
  */
 async function sendNewMessageNotification({ userDisplayName, telegramUsername, messagePreview, messageTime }) {
   const dashboardLink = process.env.DASHBOARD_URL || "http://localhost:3000/dashboard";

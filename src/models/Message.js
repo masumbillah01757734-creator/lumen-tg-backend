@@ -4,6 +4,7 @@ const MESSAGE_TYPES = [
   "text",
   "photo",
   "video",
+  "video_note",
   "audio",
   "voice",
   "sticker",

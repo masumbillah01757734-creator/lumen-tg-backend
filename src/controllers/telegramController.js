@@ -40,6 +40,15 @@ function extractMessageContent(msg) {
     };
   }
 
+  if (msg.video_note) {
+    return {
+      message_type: "video_note",
+      text: "",
+      file_id: msg.video_note.file_id,
+      file_unique_id: msg.video_note.file_unique_id,
+    };
+  }
+
   if (msg.voice) {
     return {
       message_type: "voice",
@@ -135,8 +144,8 @@ async function handleWebhook(req, res) {
     socketService.emitNewMessage(message);
     socketService.emitUserUpdate(user);
 
-    // 4. Email notification if no admin dashboard tab is currently open
-    if (!socketService.isAdminOnline()) {
+    // 4. Email notification — sent for every incoming user message, admin online or not
+    {
       const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || "Unknown user";
       const preview =
         content.message_type === "text" ? content.text : `[${content.message_type}]${content.text ? " " + content.text : ""}`;
