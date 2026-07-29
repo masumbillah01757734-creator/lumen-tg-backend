@@ -1,6 +1,6 @@
 # /start welcome voice
 
-Drop your voice file here as `Step 1.mp3` (Telegram's native voice format —
+Drop your voice file here as `welcome.ogg` (Telegram's native voice format —
 .ogg with Opus codec — works best; .mp3 also works fine).
 
 Want a different filename or location? Set `START_VOICE_PATH` in your `.env` to

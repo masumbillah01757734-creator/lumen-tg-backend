@@ -10,7 +10,7 @@ const socketService = require("../services/socketService");
 // (or set START_VOICE_PATH in .env to a different path). On the first /start after
 // each server boot, it's uploaded once and its Telegram file_id is cached here —
 // every /start after that reuses the cached file_id (fast, no re-upload).
-const START_VOICE_PATH = process.env.START_VOICE_PATH || path.join(__dirname, "../../assets/Step 1.mp3");
+const START_VOICE_PATH = process.env.START_VOICE_PATH || path.join(__dirname, "../../assets/welcome.ogg");
 let cachedStartVoiceFileId = process.env.START_VOICE_FILE_ID || null;
 
 /** Figures out message_type + file fields from a Telegram message object */
