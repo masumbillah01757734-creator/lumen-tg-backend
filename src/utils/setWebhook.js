@@ -1,6 +1,6 @@
 /**
  * Run this once after deploying the backend, to tell Telegram where to send updates.
- * Usage: BACKEND_PUBLIC_URL=https://yourdomain.com npm run set-webhook
+ * Usage: BACKEND_PUBLIC_URL=https://yourdomain.com npm run set-webhook.
  */
 require("dotenv").config();
 const telegramService = require("../services/telegramService");
