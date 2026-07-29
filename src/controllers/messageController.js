@@ -1,7 +1,9 @@
 const axios = require("axios");
+const fs = require("fs");
 const Message = require("../models/Message");
 const telegramService = require("../services/telegramService");
 const socketService = require("../services/socketService");
+const mediaCache = require("../services/mediaCache");
 
 /** GET /api/messages/:chatId?before=<ISO date>&limit=30 */
 async function getMessages(req, res) {
@@ -53,6 +55,28 @@ async function sendReply(req, res) {
 async function proxyFile(req, res) {
   const { fileId } = req.params;
   const { filename, download } = req.query;
+
+  // If this is media the admin uploaded from the dashboard, we still have a local
+  // copy cached from send time — serve that directly and skip Telegram's getFile
+  // entirely (this is what avoids the 20MB Bot API download limit for admin's own
+  // outgoing media). Anything not in the cache — e.g. media a Telegram user sent to
+  // the bot, or an expired cache entry — falls through to the normal live fetch below.
+  const cached = mediaCache.get(fileId);
+  if (cached) {
+    try {
+      const stat = await fs.promises.stat(cached.filePath);
+      res.setHeader("Content-Type", cached.mimeType);
+      res.setHeader("Content-Length", stat.size);
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      const safeName = (filename || cached.fileName || "file").replace(/[\r\n"]/g, "");
+      const disposition = download ? "attachment" : "inline";
+      res.setHeader("Content-Disposition", `${disposition}; filename="${safeName}"`);
+      return fs.createReadStream(cached.filePath).pipe(res);
+    } catch (err) {
+      console.error(`[proxyFile] cache read failed for fileId=${fileId}, falling back:`, err.message);
+      // fall through to live Telegram fetch below
+    }
+  }
 
   try {
     const fileUrl = await telegramService.resolveFileUrl(fileId);
@@ -125,6 +149,12 @@ async function sendMedia(req, res) {
 
   // Pull back whichever media field Telegram populated, to store its file_id for later viewing.
   const sent = tgResult.photo ? tgResult.photo[tgResult.photo.length - 1] : tgResult[message_type];
+
+  // Keep a short-lived local copy of what we just uploaded, so the dashboard can preview
+  // it later without re-downloading it from Telegram (which is capped at 20MB there).
+  if (sent?.file_id) {
+    mediaCache.store(sent.file_id, file.buffer, mime, file.originalname);
+  }
 
   const message = await Message.create({
     chat_id: chatId,
