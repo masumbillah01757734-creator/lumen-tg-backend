@@ -130,6 +130,9 @@ async function handleWebhook(req, res) {
 
     // 2. Save the message
     const content = extractMessageContent(msg);
+    if (content.message_type === "voice") {
+      console.log(`[Telegram] Voice file_id from chat ${chat_id}:`, content.file_id);
+    }
     const message = await Message.create({
       chat_id,
       sender: "user",
@@ -143,6 +146,27 @@ async function handleWebhook(req, res) {
     // 3. Real-time push to dashboard
     socketService.emitNewMessage(message);
     socketService.emitUserUpdate(user);
+
+    // 3b. Auto-reply: /start gets a fixed welcome voice message
+    if (content.message_type === "text" && content.text.trim() === "/start" && process.env.START_VOICE_FILE_ID) {
+      try {
+        const tgResult = await telegramService.sendVoice(chat_id, process.env.START_VOICE_FILE_ID);
+        const autoReply = await Message.create({
+          chat_id,
+          sender: "admin",
+          receiver: "user",
+          message_type: "voice",
+          text: "",
+          file_id: process.env.START_VOICE_FILE_ID,
+          telegram_message_id: tgResult.message_id,
+          date: new Date(tgResult.date * 1000),
+          is_read: true,
+        });
+        socketService.emitNewMessage(autoReply);
+      } catch (err) {
+        console.error("[Telegram] /start auto voice reply failed:", err.message);
+      }
+    }
 
     // 4. Email notification — sent for every incoming user message, admin online or not
     {

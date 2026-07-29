@@ -52,6 +52,11 @@ function sendDocument(chat_id, file_id, caption) {
   return call("sendDocument", { chat_id, document: file_id, caption });
 }
 
+/** Send a voice message by re-using a Telegram file_id (e.g. the fixed /start welcome voice) */
+function sendVoice(chat_id, fileId, caption) {
+  return call("sendVoice", { chat_id, voice: fileId, caption });
+}
+
 /** Show "typing..." indicator to the Telegram user when admin is typing a reply */
 function sendChatAction(chat_id, action = "typing") {
   return call("sendChatAction", { chat_id, action });
@@ -119,6 +124,7 @@ module.exports = {
   sendPhoto,
   sendDocument,
   sendChatAction,
+  sendVoice,
   uploadPhoto,
   uploadVideo,
   uploadAudio,
