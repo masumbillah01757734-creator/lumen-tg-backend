@@ -1,14 +1,16 @@
+//C:\Users\Admin\Desktop\lumen messesg\backend\src\services\socketService.js
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 
 let io = null;
 let adminSocketCount = 0; // how many admin dashboard tabs are currently connected
 
-function initSocket(httpServer) {
+function initSocket(httpServer, allowedOrigins) {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL,
+      origin: allowedOrigins && allowedOrigins.length ? allowedOrigins : process.env.CLIENT_URL,
       methods: ["GET", "POST"],
+      credentials: true,
     },
   });
 
