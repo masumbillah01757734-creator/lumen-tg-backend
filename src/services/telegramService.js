@@ -75,6 +75,9 @@ function uploadVideo(chat_id, buffer, fileName, caption) {
 function uploadAudio(chat_id, buffer, fileName, caption) {
   return callWithFile("sendAudio", { chat_id, caption }, "audio", buffer, fileName);
 }
+function uploadVoice(chat_id, buffer, fileName, caption) {
+  return callWithFile("sendVoice", { chat_id, caption }, "voice", buffer, fileName);
+}
 /** Used for everything else, including .zip and other archives — Telegram treats these as generic documents */
 function uploadDocument(chat_id, buffer, fileName, caption) {
   return callWithFile("sendDocument", { chat_id, caption }, "document", buffer, fileName);
@@ -128,6 +131,7 @@ module.exports = {
   uploadPhoto,
   uploadVideo,
   uploadAudio,
+  uploadVoice,
   uploadDocument,
   copyMessage,
   resolveFileUrl,

@@ -1,8 +1,17 @@
+const fs = require("fs");
+const path = require("path");
 const User = require("../models/User");
 const Message = require("../models/Message");
 const telegramService = require("../services/telegramService");
 const emailService = require("../services/emailService");
 const socketService = require("../services/socketService");
+
+// Local voice file for the /start auto-reply. Drop your .ogg/.mp3 at this path
+// (or set START_VOICE_PATH in .env to a different path). On the first /start after
+// each server boot, it's uploaded once and its Telegram file_id is cached here —
+// every /start after that reuses the cached file_id (fast, no re-upload).
+const START_VOICE_PATH = process.env.START_VOICE_PATH || path.join(__dirname, "../../assets/Step 1.mp3");
+let cachedStartVoiceFileId = process.env.START_VOICE_FILE_ID || null;
 
 /** Figures out message_type + file fields from a Telegram message object */
 function extractMessageContent(msg) {
@@ -148,21 +157,33 @@ async function handleWebhook(req, res) {
     socketService.emitUserUpdate(user);
 
     // 3b. Auto-reply: /start gets a fixed welcome voice message
-    if (content.message_type === "text" && content.text.trim() === "/start" && process.env.START_VOICE_FILE_ID) {
+    if (content.message_type === "text" && content.text.trim() === "/start") {
       try {
-        const tgResult = await telegramService.sendVoice(chat_id, process.env.START_VOICE_FILE_ID);
-        const autoReply = await Message.create({
-          chat_id,
-          sender: "admin",
-          receiver: "user",
-          message_type: "voice",
-          text: "",
-          file_id: process.env.START_VOICE_FILE_ID,
-          telegram_message_id: tgResult.message_id,
-          date: new Date(tgResult.date * 1000),
-          is_read: true,
-        });
-        socketService.emitNewMessage(autoReply);
+        let tgResult;
+        if (cachedStartVoiceFileId) {
+          // Fast path: reuse the file_id from a previous send, no bytes re-uploaded.
+          tgResult = await telegramService.sendVoice(chat_id, cachedStartVoiceFileId);
+        } else if (fs.existsSync(START_VOICE_PATH)) {
+          // First time since boot: upload the real file, then remember its file_id.
+          const buffer = fs.readFileSync(START_VOICE_PATH);
+          tgResult = await telegramService.uploadVoice(chat_id, buffer, path.basename(START_VOICE_PATH));
+          cachedStartVoiceFileId = tgResult.voice?.file_id || null;
+        }
+
+        if (tgResult) {
+          const autoReply = await Message.create({
+            chat_id,
+            sender: "admin",
+            receiver: "user",
+            message_type: "voice",
+            text: "",
+            file_id: cachedStartVoiceFileId || tgResult.voice?.file_id || null,
+            telegram_message_id: tgResult.message_id,
+            date: new Date(tgResult.date * 1000),
+            is_read: true,
+          });
+          socketService.emitNewMessage(autoReply);
+        }
       } catch (err) {
         console.error("[Telegram] /start auto voice reply failed:", err.message);
       }
