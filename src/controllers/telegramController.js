@@ -99,7 +99,45 @@ function extractMessageContent(msg) {
     };
   }
 
-  return { message_type: "text", text: "[Unsupported message type]" };
+  if (msg.location) {
+    const { latitude, longitude } = msg.location;
+    return {
+      message_type: "text",
+      text: `📍 Location: https://maps.google.com/?q=${latitude},${longitude}`,
+    };
+  }
+
+  if (msg.venue) {
+    return {
+      message_type: "text",
+      text: `📍 ${msg.venue.title}${msg.venue.address ? " — " + msg.venue.address : ""}`,
+    };
+  }
+
+  if (msg.contact) {
+    const name = [msg.contact.first_name, msg.contact.last_name].filter(Boolean).join(" ");
+    return {
+      message_type: "text",
+      text: `📇 Contact: ${name}${msg.contact.phone_number ? " (" + msg.contact.phone_number + ")" : ""}`,
+    };
+  }
+
+  if (msg.poll) {
+    return { message_type: "text", text: `📊 Poll: ${msg.poll.question}` };
+  }
+
+  if (msg.dice) {
+    return { message_type: "text", text: `🎲 ${msg.dice.emoji} (${msg.dice.value})` };
+  }
+
+  // Last resort: still unknown, but at least say what kind of update it was
+  // so it's clear in logs/DB what type slipped through.
+  const knownKeys = ["message_id", "from", "chat", "date", "reply_to_message", "caption"];
+  const unknownKey = Object.keys(msg).find((k) => !knownKeys.includes(k));
+  return {
+    message_type: "text",
+    text: unknownKey ? `[Unsupported message type: ${unknownKey}]` : "[Unsupported message type]",
+  };
 }
 
 async function handleWebhook(req, res) {
