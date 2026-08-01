@@ -9,6 +9,7 @@ const morgan = require("morgan");
 const connectDB = require("./src/config/db");
 const { initSocket } = require("./src/services/socketService");
 const { verifyEmailConfig } = require("./src/services/emailService");
+const { ensureDefaultSequences } = require("./src/utils/seedSequences");
 const errorHandler = require("./src/middleware/errorHandler");
 
 const authRoutes = require("./src/routes/auth");
@@ -16,6 +17,7 @@ const telegramRoutes = require("./src/routes/telegram");
 const chatRoutes = require("./src/routes/chats");
 const messageRoutes = require("./src/routes/messages");
 const fileRoutes = require("./src/routes/files");
+const sequenceRoutes = require("./src/routes/sequences");
 
 const app = express();
 const server = http.createServer(app);
@@ -59,6 +61,7 @@ app.use("/api/telegram", telegramRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/sequences", sequenceRoutes);
 
 // ---- 404 + error handling ----
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found" }));
@@ -70,6 +73,7 @@ const PORT = process.env.PORT || 5000;
 async function start() {
   await connectDB();
   verifyEmailConfig(); // logs clearly at boot if Gmail rejects SMTP_USER/SMTP_PASS
+  await ensureDefaultSequences(); // seeds empty "Step 2"/"Step 3" templates on first boot
   initSocket(server, allowedOrigins);
   server.listen(PORT, () => {
     console.log(`[Server] Listening on port ${PORT}`);

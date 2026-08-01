@@ -79,6 +79,44 @@ Resolves the Telegram `file_id` via `getFile`, then **streams** the actual bytes
 
 ---
 
+## Step Sequences (three-dot menu "Step 2" / "Step 3" / any future step)
+
+Lets the admin pre-configure an ordered list of messages/media per "step" from the
+dashboard, then fire the whole thing at a chat with one click (with a delay between
+each item so it doesn't all land at once).
+
+### `GET /sequences`
+List every step template (Step 2, Step 3, and any custom ones added later), each with its `items` array.
+
+### `GET /sequences/:stepKey`
+Get one step template.
+
+### `PUT /sequences/:stepKey`
+Body: `{ "name"?: "...", "delay_ms"?: 700 }`. Creates the step if `stepKey` doesn't exist yet (`name` required in that case) — this is how new steps like "Step 4" get added. Otherwise updates its name/delay.
+
+### `DELETE /sequences/:stepKey`
+Deletes the whole step and its stored media.
+
+### `POST /sequences/:stepKey/items`
+Multipart form: `type` (`text`|`photo`|`audio`|`video`|`document`), `text` (message body or caption), `order`?, `file` (required for non-text types). Appends a new item.
+
+### `PUT /sequences/:stepKey/items/:itemId`
+Multipart form, all fields optional: `text`, `order`, `file` (replaces the media, invalidating the cached Telegram `file_id`).
+
+### `PUT /sequences/:stepKey/items/reorder`
+Body: `{ "order": [itemId, itemId, ...] }` — full new ordering.
+
+### `DELETE /sequences/:stepKey/items/:itemId`
+Removes one item (and its stored file, if any).
+
+### `GET /sequences/items/:itemId/asset?token=<JWT>`
+Streams the item's stored media, for dashboard preview only (accepts the token as a query param like `/files/:fileId` does, since `<img>`/`<audio>` can't set headers).
+
+### `POST /sequences/:stepKey/send/:chatId`
+Triggers the step for one chat — this is what the three-dot menu calls. Responds immediately once validated (`{ success, queued: true, total }`), then sends every configured item to the user one at a time in the background, with `delay_ms` between each. Each item lands through the normal `Message` + `message:new` socket path, so it appears live in any open dashboard tab exactly like a normal reply. Unconfigured item slots (empty text, or a media slot with nothing uploaded yet) are silently skipped rather than sent blank.
+
+---
+
 ## Socket.IO Events
 
 Connect with `auth: { token: <JWT> }`.

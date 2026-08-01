@@ -57,6 +57,37 @@ function sendVoice(chat_id, fileId, caption) {
   return call("sendVoice", { chat_id, voice: fileId, caption });
 }
 
+/** Send a video by re-using a previously-uploaded Telegram file_id */
+function sendVideo(chat_id, fileId, caption) {
+  return call("sendVideo", { chat_id, video: fileId, caption });
+}
+
+/** Send an audio track by re-using a previously-uploaded Telegram file_id */
+function sendAudio(chat_id, fileId, caption) {
+  return call("sendAudio", { chat_id, audio: fileId, caption });
+}
+
+/**
+ * Generic "send by file_id" dispatcher for the four media types the Step-sequence
+ * feature deals with. file_ids issued by our bot are valid for sending to any chat,
+ * not just the chat they were first uploaded to — so once an item has been sent once
+ * (see uploadPhoto/uploadVideo/etc below), every future run reuses this, no re-upload.
+ */
+function sendMediaByFileId(type, chat_id, fileId, caption) {
+  switch (type) {
+    case "photo":
+      return sendPhoto(chat_id, fileId, caption);
+    case "video":
+      return sendVideo(chat_id, fileId, caption);
+    case "audio":
+      return sendAudio(chat_id, fileId, caption);
+    case "document":
+      return sendDocument(chat_id, fileId, caption);
+    default:
+      throw new Error(`sendMediaByFileId: unsupported type "${type}"`);
+  }
+}
+
 /** Show "typing..." indicator to the Telegram user when admin is typing a reply */
 function sendChatAction(chat_id, action = "typing") {
   return call("sendChatAction", { chat_id, action });
@@ -81,6 +112,22 @@ function uploadVoice(chat_id, buffer, fileName, caption) {
 /** Used for everything else, including .zip and other archives — Telegram treats these as generic documents */
 function uploadDocument(chat_id, buffer, fileName, caption) {
   return callWithFile("sendDocument", { chat_id, caption }, "document", buffer, fileName);
+}
+
+/** Generic "upload raw bytes" dispatcher counterpart to sendMediaByFileId, for first-time sends */
+function uploadMediaBuffer(type, chat_id, buffer, fileName, caption) {
+  switch (type) {
+    case "photo":
+      return uploadPhoto(chat_id, buffer, fileName, caption);
+    case "video":
+      return uploadVideo(chat_id, buffer, fileName, caption);
+    case "audio":
+      return uploadAudio(chat_id, buffer, fileName, caption);
+    case "document":
+      return uploadDocument(chat_id, buffer, fileName, caption);
+    default:
+      throw new Error(`uploadMediaBuffer: unsupported type "${type}"`);
+  }
 }
 
 /**
@@ -128,11 +175,15 @@ module.exports = {
   sendDocument,
   sendChatAction,
   sendVoice,
+  sendVideo,
+  sendAudio,
+  sendMediaByFileId,
   uploadPhoto,
   uploadVideo,
   uploadAudio,
   uploadVoice,
   uploadDocument,
+  uploadMediaBuffer,
   copyMessage,
   resolveFileUrl,
   getUserProfilePhotoFileId,
