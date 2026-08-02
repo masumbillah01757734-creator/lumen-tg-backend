@@ -2,8 +2,15 @@ const axios = require("axios");
 const FormData = require("form-data");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const FILE_BASE = `https://api.telegram.org/file/bot${BOT_TOKEN}`;
+
+// By default we talk to Telegram's public cloud Bot API, which caps bot uploads at
+// 50MB and downloads at 20MB. To send/receive bigger files (up to 2GB), run a
+// self-hosted Local Bot API Server (https://github.com/tdlib/telegram-bot-api) and
+// point TELEGRAM_API_ROOT at it, e.g. "http://telegram-bot-api:8081".
+// See docs/local-bot-api-server.md for setup instructions.
+const API_ROOT = process.env.TELEGRAM_API_ROOT || "https://api.telegram.org";
+const API_BASE = `${API_ROOT}/bot${BOT_TOKEN}`;
+const FILE_BASE = `${API_ROOT}/file/bot${BOT_TOKEN}`;
 
 const api = axios.create({ baseURL: API_BASE, timeout: 15000 });
 
@@ -30,7 +37,29 @@ async function callWithFile(method, fields, fileField, fileBuffer, fileName) {
       headers: form.getHeaders(),
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 60000,
+      timeout: Number(process.env.TELEGRAM_UPLOAD_TIMEOUT_MS) || 10 * 60 * 1000, // 10 min default — large files take a while
+    });
+    return data.result;
+  } catch (err) {
+    const desc = err.response?.data?.description || err.message;
+    throw new Error(`Telegram API [${method}] failed: ${desc}`);
+  }
+}
+
+/** Same as callWithFile(), but takes a readable stream instead of a full in-memory buffer — used for large files so they're piped straight from disk to Telegram. */
+async function callWithFileStream(method, fields, fileField, fileStream, fileName) {
+  try {
+    const form = new FormData();
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) form.append(key, String(value));
+    });
+    form.append(fileField, fileStream, { filename: fileName || "file" });
+
+    const { data } = await api.post(`/${method}`, form, {
+      headers: form.getHeaders(),
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      timeout: Number(process.env.TELEGRAM_UPLOAD_TIMEOUT_MS) || 10 * 60 * 1000,
     });
     return data.result;
   } catch (err) {
@@ -130,6 +159,15 @@ function uploadMediaBuffer(type, chat_id, buffer, fileName, caption) {
   }
 }
 
+/** Streaming counterpart to uploadMediaBuffer — same dispatcher, but piped from disk instead of buffered in RAM. Preferred for large (>~20MB) files. */
+function uploadMediaStream(type, chat_id, fileStream, fileName, caption) {
+  const methodByType = { photo: "sendPhoto", video: "sendVideo", audio: "sendAudio", document: "sendDocument" };
+  const fieldByType = { photo: "photo", video: "video", audio: "audio", document: "document" };
+  const method = methodByType[type];
+  if (!method) throw new Error(`uploadMediaStream: unsupported type "${type}"`);
+  return callWithFileStream(method, { chat_id, caption }, fieldByType[type], fileStream, fileName);
+}
+
 /**
  * Re-sends a message (any type) from one chat straight into another chat, via Telegram's
  * copyMessage — unlike forwardMessage, this does NOT tag it "Forwarded from …", so the
@@ -184,6 +222,7 @@ module.exports = {
   uploadVoice,
   uploadDocument,
   uploadMediaBuffer,
+  uploadMediaStream,
   copyMessage,
   resolveFileUrl,
   getUserProfilePhotoFileId,

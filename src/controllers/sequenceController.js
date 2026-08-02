@@ -93,7 +93,7 @@ async function addItem(req, res) {
   };
 
   if (file) {
-    item.asset_path = await sequenceStorage.saveBuffer(file.buffer, file.originalname);
+    item.asset_path = await sequenceStorage.saveFromPath(file.path, file.originalname);
     item.file_name = file.originalname;
     item.mime_type = file.mimetype;
     item.file_id = null;
@@ -125,7 +125,7 @@ async function updateItem(req, res) {
 
   if (file) {
     if (item.asset_path) await sequenceStorage.deleteFile(item.asset_path);
-    item.asset_path = await sequenceStorage.saveBuffer(file.buffer, file.originalname);
+    item.asset_path = await sequenceStorage.saveFromPath(file.path, file.originalname);
     item.file_name = file.originalname;
     item.mime_type = file.mimetype;
     item.file_id = null; // force a fresh upload on the next send
@@ -257,8 +257,28 @@ async function sendSequenceItem(seq, item, chatId) {
     tgResult = await telegramService.sendMediaByFileId(item.type, chatId, fileId, item.text || "");
   } else {
     // First time this item is ever sent: upload the real bytes once, then remember the file_id.
-    const buffer = await sequenceStorage.readBuffer(item.asset_path);
-    tgResult = await telegramService.uploadMediaBuffer(item.type, chatId, buffer, item.file_name, item.text || "");
+    // Large files (>20MB — beyond what the dashboard preview cache round-trips comfortably as a
+    // buffer) stream straight from disk; smaller ones use the simple buffer path.
+    const assetPath = sequenceStorage.resolvePath(item.asset_path);
+    const { size } = await fs.promises.stat(assetPath);
+    const STREAM_THRESHOLD_BYTES = 20 * 1024 * 1024;
+
+    const useStream = size > STREAM_THRESHOLD_BYTES;
+    let smallFileBuffer = null;
+
+    if (useStream) {
+      tgResult = await telegramService.uploadMediaStream(
+        item.type,
+        chatId,
+        sequenceStorage.createReadStream(item.asset_path),
+        item.file_name,
+        item.text || ""
+      );
+    } else {
+      smallFileBuffer = await sequenceStorage.readBuffer(item.asset_path);
+      tgResult = await telegramService.uploadMediaBuffer(item.type, chatId, smallFileBuffer, item.file_name, item.text || "");
+    }
+
     const sent = tgResult.photo ? tgResult.photo[tgResult.photo.length - 1] : tgResult[item.type];
     fileId = sent?.file_id || null;
 
@@ -266,7 +286,11 @@ async function sendSequenceItem(seq, item, chatId) {
       item.file_id = fileId;
       item.file_unique_id = sent?.file_unique_id || null;
       await seq.save(); // persist the cached file_id so every future run of this step is instant
-      mediaCache.store(fileId, buffer, item.mime_type, item.file_name);
+      if (useStream) {
+        mediaCache.storeFromPath(fileId, assetPath, item.mime_type, item.file_name);
+      } else {
+        mediaCache.store(fileId, smallFileBuffer, item.mime_type, item.file_name);
+      }
     }
   }
 

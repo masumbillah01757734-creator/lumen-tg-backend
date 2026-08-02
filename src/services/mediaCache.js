@@ -57,6 +57,23 @@ async function store(fileId, buffer, mimeType, fileName) {
   }
 }
 
+/** Same as store(), but copies from an existing on-disk file instead of a RAM buffer — used for large files uploaded via the streaming path. */
+async function storeFromPath(fileId, sourcePath, mimeType, fileName) {
+  if (!fileId || !sourcePath) return;
+  const filePath = keyToPath(fileId);
+  try {
+    await fs.promises.copyFile(sourcePath, filePath);
+    index.set(fileId, {
+      filePath,
+      mimeType: mimeType || "application/octet-stream",
+      fileName: fileName || "file",
+      expiresAt: Date.now() + TTL_MS,
+    });
+  } catch (err) {
+    console.error(`[mediaCache] failed to cache (from path) fileId=${fileId}:`, err.message);
+  }
+}
+
 /** Look up a cached entry. Returns null if missing/expired (and cleans it up). */
 function get(fileId) {
   const entry = index.get(fileId);
@@ -82,4 +99,4 @@ function sweep() {
 
 setInterval(sweep, SWEEP_INTERVAL_MS).unref();
 
-module.exports = { store, get };
+module.exports = { store, storeFromPath, get };

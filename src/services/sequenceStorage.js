@@ -36,6 +36,31 @@ async function saveBuffer(buffer, originalName) {
   return filename;
 }
 
+/**
+ * Move an already-on-disk file (e.g. multer's diskStorage temp upload) into permanent
+ * storage. Used instead of saveBuffer for large uploads (up to 2GB via Local Bot API
+ * Server) so the whole file never has to sit in a RAM buffer at once.
+ */
+async function saveFromPath(tmpPath, originalName) {
+  const ext = path.extname(originalName || "").slice(0, 10);
+  const filename = `${crypto.randomBytes(16).toString("hex")}${ext}`;
+  const dest = path.join(STORAGE_DIR, filename);
+  try {
+    await fs.promises.rename(tmpPath, dest); // fast path: same filesystem
+  } catch (err) {
+    if (err.code !== "EXDEV") throw err;
+    // tmp dir is on a different filesystem/volume — fall back to stream copy
+    await fs.promises.copyFile(tmpPath, dest);
+    await fs.promises.unlink(tmpPath);
+  }
+  return filename;
+}
+
+/** Readable stream for a stored file — used to upload to Telegram without buffering it whole in RAM */
+function createReadStream(filename) {
+  return fs.createReadStream(resolvePath(filename));
+}
+
 function resolvePath(filename) {
   return path.join(STORAGE_DIR, filename);
 }
@@ -57,4 +82,4 @@ function exists(filename) {
   return !!filename && fs.existsSync(resolvePath(filename));
 }
 
-module.exports = { saveBuffer, resolvePath, readBuffer, deleteFile, exists, STORAGE_DIR };
+module.exports = { saveBuffer, saveFromPath, resolvePath, readBuffer, createReadStream, deleteFile, exists, STORAGE_DIR };

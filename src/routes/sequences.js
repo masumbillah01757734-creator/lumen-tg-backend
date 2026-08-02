@@ -1,3 +1,4 @@
+const os = require("os");
 const express = require("express");
 const multer = require("multer");
 const { requireAuth } = require("../middleware/auth");
@@ -16,12 +17,19 @@ const {
 
 const router = express.Router();
 
-// Memory storage — same pattern as routes/messages.js. Bytes are written to a
-// persistent local file once (services/sequenceStorage.js), then only ever
-// re-uploaded to Telegram the very first time the item is actually sent.
+// Disk storage (temp dir) — large files stream straight to disk instead of filling
+// RAM. sequenceController then moves the temp file into permanent storage
+// (services/sequenceStorage.js) via saveFromPath. The item is only ever re-uploaded
+// to Telegram the first time it's actually sent (see runSequence).
+//
+// Default limit is 2GB — the ceiling a self-hosted Local Bot API Server supports
+// (the public cloud Bot API only allows 50MB). If you haven't set up the local
+// server yet (see docs/local-bot-api-server.md), set MAX_UPLOAD_MB lower so users
+// get a clear error instead of an upload that will fail later when sending.
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || 2000;
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 45 * 1024 * 1024 },
+  storage: multer.diskStorage({ destination: os.tmpdir() }),
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
 });
 
 router.use(requireAuth);
