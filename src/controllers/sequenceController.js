@@ -220,7 +220,13 @@ async function runSequence(req, res) {
         await sendSequenceItem(seq, item, chatId);
       } catch (err) {
         console.error(`[runSequence] "${stepKey}" item ${item.order} (${item.type}) failed for chat ${chatId}:`, err.message);
-        // Keep going — one bad item (e.g. an unconfigured slot) shouldn't stop the rest.
+        if (telegramService.isBlockedByUserError(err)) {
+          await User.findOneAndUpdate({ chat_id: chatId }, { has_blocked_bot: true });
+          const updated = await User.findOne({ chat_id: chatId });
+          if (updated) socketService.emitUserUpdate(updated);
+          break; // every remaining item would fail the same way — stop here
+        }
+        // Some other, one-off failure (e.g. an unconfigured slot) — keep going with the rest.
       }
       if (i < items.length - 1) await sleep(seq.delay_ms || 700);
     }

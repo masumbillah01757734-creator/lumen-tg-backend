@@ -207,6 +207,11 @@ async function deleteWebhook() {
   return call("deleteWebhook", {});
 }
 
+/** True if a Telegram API error means "this user has blocked the bot" (as opposed to any other failure). */
+function isBlockedByUserError(err) {
+  return /bot was blocked by the user/i.test(err?.message || "");
+}
+
 module.exports = {
   sendTextMessage,
   sendPhoto,
@@ -228,4 +233,5 @@ module.exports = {
   getUserProfilePhotoFileId,
   setWebhook,
   deleteWebhook,
+  isBlockedByUserError,
 };

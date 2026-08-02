@@ -18,10 +18,15 @@ const userSchema = new mongoose.Schema(
     is_pinned: { type: Boolean, default: false },
     is_archived: { type: Boolean, default: false },
 
-    // Blocking
+    // Blocking (admin-initiated — hides/mutes this user in the dashboard)
     is_blocked: { type: Boolean, default: false },
     block_reason: { type: String, default: null },
     blocked_at: { type: Date, default: null },
+
+    // Set true the moment a send to this chat fails because the Telegram *user* has
+    // blocked the bot (Telegram error: "Forbidden: bot was blocked by the user").
+    // Cleared automatically the next time a send to them succeeds.
+    has_blocked_bot: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

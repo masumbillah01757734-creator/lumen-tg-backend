@@ -1,9 +1,11 @@
 const axios = require("axios");
 const fs = require("fs");
 const Message = require("../models/Message");
+const User = require("../models/User");
 const telegramService = require("../services/telegramService");
 const socketService = require("../services/socketService");
 const mediaCache = require("../services/mediaCache");
+const { respondToSendFailure } = require("../utils/telegramSendErrors");
 
 /** GET /api/messages/:chatId?before=<ISO date>&limit=30 */
 async function getMessages(req, res) {
@@ -30,7 +32,13 @@ async function sendReply(req, res) {
     return res.status(400).json({ success: false, message: "Message text is required" });
   }
 
-  const tgResult = await telegramService.sendTextMessage(chatId, text);
+  let tgResult;
+  try {
+    tgResult = await telegramService.sendTextMessage(chatId, text);
+  } catch (err) {
+    return respondToSendFailure(err, chatId, res);
+  }
+  await User.updateOne({ chat_id: chatId, has_blocked_bot: true }, { has_blocked_bot: false });
 
   const message = await Message.create({
     chat_id: chatId,
@@ -143,9 +151,9 @@ async function sendMedia(req, res) {
       tgResult = await telegramService.uploadDocument(chatId, file.buffer, file.originalname, caption);
     }
   } catch (err) {
-    console.error("[sendMedia] Telegram upload failed:", err.message);
-    return res.status(502).json({ success: false, message: err.message });
+    return respondToSendFailure(err, chatId, res);
   }
+  await User.updateOne({ chat_id: chatId, has_blocked_bot: true }, { has_blocked_bot: false });
 
   // Pull back whichever media field Telegram populated, to store its file_id for later viewing.
   const sent = tgResult.photo ? tgResult.photo[tgResult.photo.length - 1] : tgResult[message_type];
@@ -200,9 +208,9 @@ async function forwardMessage(req, res) {
   try {
     tgResult = await telegramService.copyMessage(toChatId, chatId, telegramMessageId);
   } catch (err) {
-    console.error("[forwardMessage] Telegram copyMessage failed:", err.message);
-    return res.status(502).json({ success: false, message: err.message });
+    return respondToSendFailure(err, toChatId, res);
   }
+  await User.updateOne({ chat_id: toChatId, has_blocked_bot: true }, { has_blocked_bot: false });
 
   const message = await Message.create({
     chat_id: toChatId,
