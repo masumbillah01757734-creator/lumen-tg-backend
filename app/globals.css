@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+  background-color: #0a1316;
+  color: #eaf3f4;
+  font-family: var(--font-inter), sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #223339 transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #223339;
+  border-radius: 999px;
+}
+
+/* Asymmetric message bubble tails — the app's signature visual detail */
+.bubble-in {
+  border-radius: 4px 18px 18px 18px;
+}
+.bubble-out {
+  border-radius: 18px 4px 18px 18px;
+}
+
+:focus-visible {
+  outline: 2px solid #2bb6c9;
+  outline-offset: 2px;
+}
+
+/* Faint brand glow behind the sidebar header — the identity's signature touch */
+.ember-wash {
+  background-image: radial-gradient(circle at 20% 0%, rgba(43, 182, 201, 0.18), transparent 55%);
+}
+
+/* Twemoji images swapped in for emoji characters — sized to sit inline with text */
+img.inline-emoji {
+  height: 1.2em;
+  width: 1.2em;
+  margin: 0 0.05em;
+  vertical-align: -0.2em;
+  display: inline-block;
+}
