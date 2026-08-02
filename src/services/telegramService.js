@@ -184,17 +184,9 @@ function copyMessage(toChatId, fromChatId, messageId) {
  */
 async function resolveFileUrl(file_id) {
   const file = await call("getFile", { file_id });
-  let filePath = file.file_path;
-  if (filePath.startsWith("/")) {
-    // The server's on-disk layout is <working_dir>/<bot_id>/..., using only the
-    // numeric bot_id (the part of BOT_TOKEN before the ":"), not the full token.
-    const botId = BOT_TOKEN.split(":")[0];
-    const marker = `/${botId}/`;
-    const idx = filePath.indexOf(marker);
-    filePath = idx !== -1 ? filePath.slice(idx + marker.length) : filePath;
-  }
-  return `${FILE_BASE}/${filePath}`;
+  return `${FILE_BASE}/${file.file_path}`;
 }
+
 /** Fetch the user's current profile photo file_id (biggest available size) */
 async function getUserProfilePhotoFileId(chat_id) {
   const result = await call("getUserProfilePhotos", { user_id: chat_id, limit: 1 });
