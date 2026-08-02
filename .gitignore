@@ -1,4 +1,4 @@
-node_modules/
-.next/
 .env
-.zip
+.env.local
+.env.*
+node_modules/
