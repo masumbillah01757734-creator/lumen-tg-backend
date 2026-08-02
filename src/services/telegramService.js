@@ -186,7 +186,10 @@ async function resolveFileUrl(file_id) {
   const file = await call("getFile", { file_id });
   let filePath = file.file_path;
   if (filePath.startsWith("/")) {
-    const marker = `/${BOT_TOKEN}/`;
+    // The server's on-disk layout is <working_dir>/<bot_id>/..., using only the
+    // numeric bot_id (the part of BOT_TOKEN before the ":"), not the full token.
+    const botId = BOT_TOKEN.split(":")[0];
+    const marker = `/${botId}/`;
     const idx = filePath.indexOf(marker);
     filePath = idx !== -1 ? filePath.slice(idx + marker.length) : filePath;
   }
