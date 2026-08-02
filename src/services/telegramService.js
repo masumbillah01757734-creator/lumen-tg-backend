@@ -184,9 +184,14 @@ function copyMessage(toChatId, fromChatId, messageId) {
  */
 async function resolveFileUrl(file_id) {
   const file = await call("getFile", { file_id });
-  return `${FILE_BASE}/${file.file_path}`;
+  let filePath = file.file_path;
+  if (filePath.startsWith("/")) {
+    const marker = `/${BOT_TOKEN}/`;
+    const idx = filePath.indexOf(marker);
+    filePath = idx !== -1 ? filePath.slice(idx + marker.length) : filePath;
+  }
+  return `${FILE_BASE}/${filePath}`;
 }
-
 /** Fetch the user's current profile photo file_id (biggest available size) */
 async function getUserProfilePhotoFileId(chat_id) {
   const result = await call("getUserProfilePhotos", { user_id: chat_id, limit: 1 });
